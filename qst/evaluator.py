@@ -81,8 +81,6 @@ class QSTEvaluator:
         if parameters.attack in {
             "random_replacement",
             "targeted_replacement",
-            "fixed_replacement",
-            "worst_replacement",
         }:
             result = physical_replacement_attack(
                 rho,
@@ -91,6 +89,7 @@ class QSTEvaluator:
                 kind=parameters.attack,
                 target_state=self.config.attack.target_state,
                 target_min_trace_distance=self.config.attack.target_min_trace_distance,
+                shots_per_setting=shots,
                 generator=self.generator,
             )
             attacked = self.measurement.sample_frequencies(
@@ -127,6 +126,7 @@ class QSTEvaluator:
                 kind=parameters.combined_physical_kind,
                 target_state=self.config.attack.target_state,
                 target_min_trace_distance=self.config.attack.target_min_trace_distance,
+                shots_per_setting=shots,
                 generator=self.generator,
             )
             base = self.measurement.sample_frequencies(

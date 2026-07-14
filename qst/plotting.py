@@ -14,8 +14,6 @@ ATTACK_LABELS = {
     "clean": "Clean",
     "random_replacement": "Random replacement",
     "targeted_replacement": "Targeted replacement",
-    "fixed_replacement": "Fixed replacement",
-    "worst_replacement": "Worst replacement",
     "frequency_pgd": "Frequency PGD",
     "combined": "Replacement + PGD",
 }

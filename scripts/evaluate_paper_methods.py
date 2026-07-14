@@ -19,8 +19,8 @@ from qst.utils import ensure_dir, resolve_device, save_json, seed_everything
 
 
 NN_METHODS = ["clean_nn", "adversarial_nn"]
-DEFAULT_ATTACKS = ["clean", "random_replacement", "targeted_replacement", "worst_replacement", "frequency_pgd"]
-PHYSICAL_ATTACKS = {"random_replacement", "targeted_replacement", "fixed_replacement", "worst_replacement"}
+DEFAULT_ATTACKS = ["clean", "random_replacement", "targeted_replacement", "frequency_pgd"]
+PHYSICAL_ATTACKS = {"random_replacement", "targeted_replacement"}
 
 
 def _load_nn(config: QSTConfig, checkpoint: str | Path, device: torch.device) -> torch.nn.Module:
@@ -68,6 +68,7 @@ def _make_frequencies(
             kind=attack,
             target_state=config.attack.target_state,
             target_min_trace_distance=config.attack.target_min_trace_distance,
+            shots_per_setting=shots,
             generator=generator,
         )
         metadata["alpha_requested"] = result.alpha_requested

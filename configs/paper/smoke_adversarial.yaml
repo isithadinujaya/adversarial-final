@@ -11,9 +11,8 @@ attack:
   physical_training_types:
   - random_replacement
   - targeted_replacement
-  - worst_replacement
   target_min_trace_distance: 0.5
-  target_state: random_far
+  target_state: zero
 baselines:
   bayesian_particle_chunk: 16
   bayesian_particles: 32
@@ -60,7 +59,6 @@ evaluation:
   - clean
   - random_replacement
   - targeted_replacement
-  - worst_replacement
   - frequency_pgd
   batch_size: 8
   default_alpha: 0.1

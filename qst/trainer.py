@@ -153,6 +153,7 @@ class RobustQSTTrainer:
             kind=attack_kind,
             target_state=self.config.attack.target_state,
             target_min_trace_distance=self.config.attack.target_min_trace_distance,
+            shots_per_setting=self.config.data.shots_per_setting,
             generator=generator,
         )
         return self.measurement.sample_frequencies(

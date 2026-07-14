@@ -37,11 +37,10 @@ attack:
   physical_training_types:
   - random_replacement
   - targeted_replacement
-  - worst_replacement
   alpha_min: 0.01
   alpha_max: 0.2
   epsilon_physical: 0.2
-  target_state: random_far
+  target_state: zero
   target_min_trace_distance: 0.5
   epsilon_frequency_min: 0.005
   epsilon_frequency_max: 0.05
@@ -68,7 +67,6 @@ evaluation:
   - clean
   - random_replacement
   - targeted_replacement
-  - worst_replacement
   - frequency_pgd
   default_alpha: 0.1
   default_epsilon_frequency: 0.03

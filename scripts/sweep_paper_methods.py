@@ -19,7 +19,7 @@ from qst.utils import ensure_dir, resolve_device, seed_everything, save_json
 
 
 NN_METHODS = ["clean_nn", "adversarial_nn"]
-PHYSICAL_ATTACKS = ["random_replacement", "targeted_replacement", "worst_replacement"]
+PHYSICAL_ATTACKS = ["random_replacement", "targeted_replacement"]
 
 
 def _load_model(config, checkpoint, device):
@@ -78,6 +78,7 @@ def evaluate_alpha_sweep_case(
                     kind=attack,
                     target_state=config.attack.target_state,
                     target_min_trace_distance=config.attack.target_min_trace_distance,
+                    shots_per_setting=config.data.shots_per_setting,
                     generator=generator,
                 )
                 frequencies = measurement.sample_frequencies(

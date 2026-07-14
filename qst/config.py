@@ -62,13 +62,12 @@ class AttackConfig:
         default_factory=lambda: [
             "random_replacement",
             "targeted_replacement",
-            "worst_replacement",
         ]
     )
     alpha_min: float = 0.01
     alpha_max: float = 0.20
     epsilon_physical: float = 0.20
-    target_state: str = "random_far"
+    target_state: str = "zero"
     target_min_trace_distance: float = 0.50
     epsilon_frequency_min: float = 0.005
     epsilon_frequency_max: float = 0.050
@@ -113,7 +112,6 @@ class EvaluationConfig:
             "clean",
             "random_replacement",
             "targeted_replacement",
-            "worst_replacement",
             "frequency_pgd",
         ]
     )
@@ -188,8 +186,6 @@ class QSTConfig:
         allowed_physical = {
             "random_replacement",
             "targeted_replacement",
-            "fixed_replacement",
-            "worst_replacement",
         }
         if not self.attack.physical_training_types:
             raise ValueError("At least one physical training attack is required.")

@@ -17,6 +17,7 @@ class PhysicalAttackResult:
     source_replacement_distance: torch.Tensor
     epsilon_actual: torch.Tensor
     target_state: torch.Tensor | None = None
+    replacement_copy_count: torch.Tensor | None = None
 
 
 def _basis_state(
@@ -83,30 +84,102 @@ def _random_far_target(
     return target
 
 
-def _replacement_state(
+def _alpha_tensor(
     rho: torch.Tensor,
-    kind: str,
-    target_state: str,
-    target_min_trace_distance: float,
+    alpha: float | torch.Tensor,
+) -> torch.Tensor:
+    batch_size = rho.shape[0]
+    if isinstance(alpha, torch.Tensor):
+        alpha_requested = alpha.to(device=rho.device, dtype=torch.float32).reshape(-1)
+        if alpha_requested.numel() == 1:
+            alpha_requested = alpha_requested.expand(batch_size)
+    else:
+        alpha_requested = torch.full(
+            (batch_size,), float(alpha), device=rho.device, dtype=torch.float32
+        )
+    return alpha_requested.clamp(0.0, 1.0)
+
+
+def _copy_counts_from_alpha(
+    alpha_requested: torch.Tensor,
+    shots_per_setting: int | None,
+) -> torch.Tensor:
+    """Return m_i = round(alpha_i N) for every state.
+
+    If shots_per_setting is not supplied, the random-replacement attack falls
+    back to one random replacement state per clean state.
+    """
+    if shots_per_setting is None:
+        return torch.ones_like(alpha_requested, dtype=torch.long)
+    if shots_per_setting <= 0:
+        raise ValueError("shots_per_setting must be positive when provided.")
+    return torch.round(alpha_requested * int(shots_per_setting)).to(torch.long).clamp(
+        min=0, max=int(shots_per_setting)
+    )
+
+
+def _random_average_replacement_state(
+    rho: torch.Tensor,
+    *,
+    alpha_requested: torch.Tensor,
+    shots_per_setting: int | None,
     generator: torch.Generator | None,
-) -> tuple[torch.Tensor, torch.Tensor | None]:
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Average m_i independently generated states for each source state.
+
+    For source state rho_i, this constructs
+
+        sigma_bar_i = (1 / m_i) sum_{j=1}^{m_i} sigma_{ij},
+        m_i = round(alpha_i N),
+
+    where each sigma_{ij} is independently sampled from the same replacement
+    ensemble. If m_i = 0, sigma_bar_i is set to rho_i because the effective
+    replacement coefficient is zero.
+    """
     batch_size, dimension, _ = rho.shape
     device, dtype = rho.device, rho.dtype
-    if kind == "random_replacement":
-        mixture = StateMixture(0.5, 0.5, 0.0, 0.2, 1.0)
-        replacement, _ = sample_density_matrices(
-            batch_size,
+    copy_counts = _copy_counts_from_alpha(alpha_requested, shots_per_setting)
+    mixture = StateMixture(0.5, 0.5, 0.0, 0.2, 1.0)
+    replacement = torch.empty_like(rho)
+
+    for index, count_value in enumerate(copy_counts.detach().cpu().tolist()):
+        count = int(count_value)
+        if count == 0:
+            replacement[index] = rho[index]
+            continue
+        states, _ = sample_density_matrices(
+            count,
             dimension,
             mixture,
             device=device,
             dtype=dtype,
             generator=generator,
         )
-        return replacement, None
-    if kind == "fixed_replacement":
-        return _basis_state(batch_size, dimension, 0, device, dtype), None
-    if kind == "worst_replacement":
-        return _worst_eigenstate(rho), None
+        replacement[index] = states.mean(dim=0)
+
+    return replacement, copy_counts.to(device=rho.device)
+
+
+def _replacement_state(
+    rho: torch.Tensor,
+    kind: str,
+    target_state: str,
+    target_min_trace_distance: float,
+    generator: torch.Generator | None,
+    *,
+    alpha_requested: torch.Tensor,
+    shots_per_setting: int | None,
+) -> tuple[torch.Tensor, torch.Tensor | None, torch.Tensor | None]:
+    batch_size, dimension, _ = rho.shape
+    device, dtype = rho.device, rho.dtype
+    if kind == "random_replacement":
+        replacement, copy_counts = _random_average_replacement_state(
+            rho,
+            alpha_requested=alpha_requested,
+            shots_per_setting=shots_per_setting,
+            generator=generator,
+        )
+        return replacement, None, copy_counts
     if kind == "targeted_replacement":
         if target_state == "zero":
             target = _basis_state(batch_size, dimension, 0, device, dtype)
@@ -120,7 +193,8 @@ def _replacement_state(
             )
         else:
             raise ValueError(f"Unknown target state: {target_state}")
-        return target, target
+        copy_counts = _copy_counts_from_alpha(alpha_requested, shots_per_setting).to(device=device)
+        return target, target, copy_counts
     raise ValueError(f"Unsupported physical attack kind: {kind}")
 
 
@@ -130,25 +204,22 @@ def physical_replacement_attack(
     alpha: float | torch.Tensor,
     epsilon_physical: float,
     kind: str,
-    target_state: str = "random_far",
+    target_state: str = "zero",
     target_min_trace_distance: float = 0.5,
+    shots_per_setting: int | None = None,
     generator: torch.Generator | None = None,
 ) -> PhysicalAttackResult:
-    replacement, target = _replacement_state(
+    alpha_requested = _alpha_tensor(rho, alpha)
+    replacement, target, copy_counts = _replacement_state(
         rho,
         kind,
         target_state,
         target_min_trace_distance,
         generator,
+        alpha_requested=alpha_requested,
+        shots_per_setting=shots_per_setting,
     )
     distance = trace_distance(rho, replacement)
-    if isinstance(alpha, torch.Tensor):
-        alpha_requested = alpha.to(device=rho.device, dtype=distance.dtype).reshape(-1)
-        if alpha_requested.numel() == 1:
-            alpha_requested = alpha_requested.expand(rho.shape[0])
-    else:
-        alpha_requested = torch.full_like(distance, float(alpha))
-    alpha_requested = alpha_requested.clamp(0.0, 1.0)
 
     if epsilon_physical < 0.0:
         raise ValueError("epsilon_physical must be nonnegative.")
@@ -157,7 +228,9 @@ def physical_replacement_attack(
         torch.full_like(distance, epsilon_physical) / distance.clamp_min(1.0e-12),
         torch.ones_like(distance),
     )
-    alpha_effective = torch.minimum(alpha_requested, cap).clamp(0.0, 1.0)
+    alpha_effective = torch.minimum(
+        alpha_requested.to(dtype=distance.dtype), cap
+    ).clamp(0.0, 1.0)
     attacked = (
         (1.0 - alpha_effective)[:, None, None] * rho
         + alpha_effective[:, None, None] * replacement
@@ -171,4 +244,5 @@ def physical_replacement_attack(
         source_replacement_distance=distance,
         epsilon_actual=epsilon_actual,
         target_state=target,
+        replacement_copy_count=copy_counts,
     )

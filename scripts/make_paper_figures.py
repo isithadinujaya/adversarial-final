@@ -24,9 +24,19 @@ ATTACK_LABELS = {
     "clean": "Clean",
     "random_replacement": "Random repl.",
     "targeted_replacement": "Targeted repl.",
-    "worst_replacement": "Worst repl.",
     "frequency_pgd": "Frequency PGD",
 }
+
+ATTACK_ORDER = ["clean", "random_replacement", "targeted_replacement", "frequency_pgd"]
+NN_METHOD_ORDER = ["clean_nn", "adversarial_nn"]
+BASELINE_COMPARISON_ORDER = [
+    "adversarial_nn",
+    "linear_inversion",
+    "mle",
+    "bayesian_particle",
+    "compressed_sensing",
+    "purification_mle",
+]
 
 
 def _save(fig, path: Path) -> None:
@@ -37,14 +47,100 @@ def _save(fig, path: Path) -> None:
     plt.close(fig)
 
 
+def _ordered_present(values, preferred_order):
+    present = list(dict.fromkeys(values))
+    ordered = [item for item in preferred_order if item in present]
+    ordered.extend(item for item in present if item not in ordered)
+    return ordered
+
+
+
+def plot_clean_vs_adversarial_nn(frame: pd.DataFrame, figures_dir: Path) -> None:
+    """Direct fidelity comparison between clean-only NN and adversarially trained NN."""
+    subset = frame[frame["method"].isin(NN_METHOD_ORDER)].copy()
+    if subset.empty:
+        return
+    summary = subset.groupby(["num_qubits", "method", "attack"], as_index=False).agg(
+        mean_fidelity=("fidelity", "mean"),
+        std_fidelity=("fidelity", "std"),
+    )
+    for qubits, qframe in summary.groupby("num_qubits"):
+        attacks = _ordered_present(qframe["attack"], ATTACK_ORDER)
+        methods = _ordered_present(qframe["method"], NN_METHOD_ORDER)
+        x = np.arange(len(attacks))
+        width = 0.72 / max(1, len(methods))
+        fig, ax = plt.subplots(figsize=(max(7.5, 1.3 * len(attacks)), 5))
+        for j, method in enumerate(methods):
+            values, errors = [], []
+            for attack in attacks:
+                rows = qframe[(qframe["method"] == method) & (qframe["attack"] == attack)]
+                values.append(np.nan if rows.empty else float(rows["mean_fidelity"].iloc[0]))
+                errors.append(0.0 if rows.empty else float(rows["std_fidelity"].fillna(0.0).iloc[0]))
+            ax.bar(
+                x + (j - (len(methods) - 1) / 2) * width,
+                values,
+                width,
+                label=METHOD_LABELS.get(method, method),
+                yerr=errors,
+                capsize=2,
+            )
+        ax.set_title(f"Clean NN vs adversarially trained NN ({qubits} qubit{'s' if qubits > 1 else ''})")
+        ax.set_ylabel("Mean fidelity")
+        ax.set_ylim(0.0, 1.02)
+        ax.set_xticks(x)
+        ax.set_xticklabels([ATTACK_LABELS.get(a, a) for a in attacks], rotation=25, ha="right")
+        ax.legend(fontsize=9)
+        ax.grid(axis="y", alpha=0.3)
+        _save(fig, figures_dir / f"q{qubits}_clean_vs_adversarial_nn_fidelity")
+
+
+def plot_adversarial_nn_vs_baselines(frame: pd.DataFrame, figures_dir: Path) -> None:
+    """Compare the robust NN against non-neural baseline tomography methods."""
+    subset = frame[frame["method"].isin(BASELINE_COMPARISON_ORDER)].copy()
+    if subset.empty:
+        return
+    summary = subset.groupby(["num_qubits", "method", "attack"], as_index=False).agg(
+        mean_fidelity=("fidelity", "mean"),
+        std_fidelity=("fidelity", "std"),
+    )
+    for qubits, qframe in summary.groupby("num_qubits"):
+        attacks = _ordered_present(qframe["attack"], ATTACK_ORDER)
+        methods = _ordered_present(qframe["method"], BASELINE_COMPARISON_ORDER)
+        x = np.arange(len(attacks))
+        width = 0.84 / max(1, len(methods))
+        fig, ax = plt.subplots(figsize=(max(9, 1.6 * len(attacks)), 5.4))
+        for j, method in enumerate(methods):
+            values, errors = [], []
+            for attack in attacks:
+                rows = qframe[(qframe["method"] == method) & (qframe["attack"] == attack)]
+                values.append(np.nan if rows.empty else float(rows["mean_fidelity"].iloc[0]))
+                errors.append(0.0 if rows.empty else float(rows["std_fidelity"].fillna(0.0).iloc[0]))
+            ax.bar(
+                x + (j - (len(methods) - 1) / 2) * width,
+                values,
+                width,
+                label=METHOD_LABELS.get(method, method),
+                yerr=errors,
+                capsize=2,
+            )
+        ax.set_title(f"Adversarial NN vs baseline tomography methods ({qubits} qubit{'s' if qubits > 1 else ''})")
+        ax.set_ylabel("Mean fidelity")
+        ax.set_ylim(0.0, 1.02)
+        ax.set_xticks(x)
+        ax.set_xticklabels([ATTACK_LABELS.get(a, a) for a in attacks], rotation=25, ha="right")
+        ax.legend(fontsize=8, ncols=2)
+        ax.grid(axis="y", alpha=0.3)
+        _save(fig, figures_dir / f"q{qubits}_adversarial_nn_vs_baselines_fidelity")
+
+
 def plot_method_attack_bars(frame: pd.DataFrame, figures_dir: Path) -> None:
     summary = frame.groupby(["num_qubits", "method", "attack"], as_index=False).agg(
         mean_fidelity=("fidelity", "mean"),
         std_fidelity=("fidelity", "std"),
     )
     for qubits, qframe in summary.groupby("num_qubits"):
-        attacks = list(qframe["attack"].drop_duplicates())
-        methods = list(qframe["method"].drop_duplicates())
+        attacks = _ordered_present(qframe["attack"], ATTACK_ORDER)
+        methods = _ordered_present(qframe["method"], [*NN_METHOD_ORDER, *BASELINE_COMPARISON_ORDER])
         x = np.arange(len(attacks))
         width = 0.8 / max(1, len(methods))
         fig, ax = plt.subplots(figsize=(max(8, 1.4 * len(attacks)), 5))
@@ -124,6 +220,8 @@ def main() -> None:
     evaluation_path = Path(args.evaluation_csv)
     if evaluation_path.exists():
         frame = pd.read_csv(evaluation_path)
+        plot_clean_vs_adversarial_nn(frame, figures_dir)
+        plot_adversarial_nn_vs_baselines(frame, figures_dir)
         plot_method_attack_bars(frame, figures_dir)
         plot_infidelity_cdf(frame, figures_dir)
     else:

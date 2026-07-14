@@ -7,12 +7,30 @@ This version contains the full paper pipeline requested:
    - Stage 1: clean warm-up.
    - Stage 2: balanced adversarial warm-up, where every mini-batch contains physical and PGD attacks.
    - Stage 3: hierarchical robust training with separate physical-family and frequency-PGD losses.
-3. **Classical/non-neural baselines** under physical attacks:
+3. **Classical/non-neural baselines** under the same evaluation attacks:
    - Linear inversion with PSD trace-one projection.
    - Maximum-likelihood estimation (MLE).
    - Particle Bayesian posterior mean.
    - Compressed-sensing-style low-rank projected tomography.
    - Purification-factor MLE tomography.
+
+## Final attack set
+
+This version uses exactly three attack families in the final paper runs:
+
+1. **Random physical replacement**: for each state, the code computes
+   \(m=\mathrm{round}(\alpha N)\) and replaces those copies using \(m\)
+   independently sampled random quantum states. The effective replacement
+   state is their average.
+2. **Targeted physical replacement**: the \(m=\mathrm{round}(\alpha N)\)
+   replaced copies are all the same fixed target state. The default target is
+   \(|0\rangle\langle 0|\) for the corresponding Hilbert-space dimension,
+   set by `target_state: zero` in the YAML files.
+3. **Frequency-space PGD**: a white-box \(\ell_\infty\)-bounded perturbation of
+   the measured frequency vector with per-Pauli-setting simplex projection.
+
+The previous `worst_replacement` and `fixed_replacement` evaluation attacks are
+not used in this final version.
 
 ## Main mathematical loss for adversarial training
 
@@ -26,7 +44,8 @@ L_{\rm total}
 + 0.1 L_{\rm consistency}.
 \]
 
-The physical-family loss is
+The physical-family loss is computed over the two physical attacks,
+random replacement and targeted replacement:
 
 \[
 L_{\rm physical}=0.7L_{\rm phys,max}+0.3L_{\rm phys,avg}.
@@ -55,7 +74,7 @@ python -m scripts.evaluate_paper_methods \
   --clean-checkpoints outputs/smoke_clean_nn/best.pt \
   --adversarial-checkpoints outputs/smoke_adversarial_nn/best.pt \
   --methods clean_nn adversarial_nn linear_inversion \
-  --attacks clean random_replacement \
+  --attacks clean random_replacement targeted_replacement frequency_pgd \
   --max-samples 2 \
   --output-dir paper_results/smoke_eval
 
@@ -133,7 +152,7 @@ python -m scripts.make_paper_figures \
   --figures-dir paper_results/figures
 ```
 
-This creates PNG and PDF versions.
+This creates PNG and PDF versions, including separate fidelity comparison figures for clean NN vs adversarial NN and adversarial NN vs the baseline algorithms.
 
 ## One-command driver
 

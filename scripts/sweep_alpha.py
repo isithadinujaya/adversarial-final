@@ -17,7 +17,7 @@ def main() -> None:
     parser.add_argument(
         "--attacks",
         nargs="+",
-        default=["random_replacement", "targeted_replacement", "worst_replacement"],
+        default=["random_replacement", "targeted_replacement"],
     )
     arguments = parser.parse_args()
     config, device, _, loaders, measurement, model = prepare(
