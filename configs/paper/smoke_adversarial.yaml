@@ -1,0 +1,122 @@
+attack:
+  alpha_max: 0.2
+  alpha_min: 0.01
+  epsilon_frequency_max: 0.05
+  epsilon_frequency_min: 0.005
+  epsilon_physical: 0.2
+  pgd_eval_steps: 1
+  pgd_random_start: true
+  pgd_step_size: 0.01
+  pgd_train_steps: 1
+  physical_training_types:
+  - random_replacement
+  - targeted_replacement
+  - worst_replacement
+  target_min_trace_distance: 0.5
+  target_state: random_far
+baselines:
+  bayesian_particle_chunk: 16
+  bayesian_particles: 32
+  compressed_sensing_steps: 5
+  mle_steps: 5
+  purification_steps: 5
+data:
+  depolarized_fraction: 0.3
+  depolarized_visibility_max: 1.0
+  depolarized_visibility_min: 0.2
+  ginibre_rank: null
+  mixed_fraction: 0.35
+  num_workers: 0
+  pure_fraction: 0.35
+  shots_per_setting: 1000
+  test_states: 8
+  train_resample_measurements: true
+  train_states: 8
+  val_states: 8
+evaluation:
+  alpha_epsilon_alpha_grid:
+  - 0.0
+  - 0.05
+  - 0.1
+  - 0.15
+  - 0.2
+  alpha_epsilon_frequency_grid:
+  - 0.0
+  - 0.01
+  - 0.02
+  - 0.03
+  - 0.05
+  alpha_grid:
+  - 0.0
+  - 0.025
+  - 0.05
+  - 0.075
+  - 0.1
+  - 0.15
+  - 0.2
+  - 0.25
+  - 0.3
+  attacks:
+  - clean
+  - random_replacement
+  - targeted_replacement
+  - worst_replacement
+  - frequency_pgd
+  batch_size: 8
+  default_alpha: 0.1
+  default_epsilon_frequency: 0.03
+  epsilon_frequency_grid:
+  - 0.0
+  - 0.005
+  - 0.01
+  - 0.02
+  - 0.03
+  - 0.04
+  - 0.05
+  - 0.075
+  - 0.1
+  max_samples: 8
+  save_predictions: true
+  shots_grid:
+  - 100
+  - 250
+  - 500
+  - 1000
+  - 2000
+  - 5000
+experiment:
+  device: auto
+  name: smoke_adversarial_nn
+  num_qubits: 1
+  output_dir: outputs/smoke_adversarial_nn
+  seed: 7
+loss:
+  clean_weight: 1.0
+  consistency_weight: 0.1
+  fidelity_epsilon: 1.0e-09
+  pgd_weight: 0.5
+  physical_max_weight: 0.7
+  physical_weight: 0.5
+model:
+  activation: gelu
+  diagonal_floor: 0.0001
+  dropout: 0.05
+  hidden_dims:
+  - 32
+  - 32
+  layer_norm: true
+  name: mlp
+training:
+  batch_size: 8
+  early_stopping_patience: 20
+  epochs: 3
+  gradient_clip_norm: 1.0
+  learning_rate: 0.0003
+  log_every: 1
+  min_learning_rate: 1.0e-06
+  scheduler_factor: 0.5
+  scheduler_patience: 8
+  strategy: staged_adversarial
+  weight_decay: 0.0001
+  clean_warmup_epochs: 1
+  balanced_warmup_epochs: 1

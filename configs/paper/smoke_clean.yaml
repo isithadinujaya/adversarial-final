@@ -1,0 +1,120 @@
+experiment:
+  name: smoke_clean_nn
+  seed: 7
+  num_qubits: 1
+  device: auto
+  output_dir: outputs/smoke_clean_nn
+data:
+  train_states: 8
+  val_states: 8
+  test_states: 8
+  shots_per_setting: 1000
+  train_resample_measurements: true
+  pure_fraction: 0.35
+  mixed_fraction: 0.35
+  depolarized_fraction: 0.3
+  depolarized_visibility_min: 0.2
+  depolarized_visibility_max: 1.0
+  ginibre_rank: null
+  num_workers: 0
+model:
+  name: mlp
+  hidden_dims:
+  - 32
+  - 32
+  activation: gelu
+  dropout: 0.05
+  layer_norm: true
+  diagonal_floor: 0.0001
+loss:
+  clean_weight: 1.0
+  physical_weight: 0.5
+  pgd_weight: 0.5
+  consistency_weight: 0.1
+  physical_max_weight: 0.7
+  fidelity_epsilon: 1.0e-09
+attack:
+  physical_training_types:
+  - random_replacement
+  - targeted_replacement
+  - worst_replacement
+  alpha_min: 0.01
+  alpha_max: 0.2
+  epsilon_physical: 0.2
+  target_state: random_far
+  target_min_trace_distance: 0.5
+  epsilon_frequency_min: 0.005
+  epsilon_frequency_max: 0.05
+  pgd_train_steps: 1
+  pgd_eval_steps: 1
+  pgd_step_size: 0.01
+  pgd_random_start: true
+training:
+  epochs: 1
+  batch_size: 8
+  learning_rate: 0.0003
+  weight_decay: 0.0001
+  gradient_clip_norm: 1.0
+  scheduler_factor: 0.5
+  scheduler_patience: 8
+  early_stopping_patience: 20
+  min_learning_rate: 1.0e-06
+  log_every: 1
+  strategy: clean_only
+evaluation:
+  batch_size: 8
+  max_samples: 8
+  attacks:
+  - clean
+  - random_replacement
+  - targeted_replacement
+  - worst_replacement
+  - frequency_pgd
+  default_alpha: 0.1
+  default_epsilon_frequency: 0.03
+  alpha_grid:
+  - 0.0
+  - 0.025
+  - 0.05
+  - 0.075
+  - 0.1
+  - 0.15
+  - 0.2
+  - 0.25
+  - 0.3
+  epsilon_frequency_grid:
+  - 0.0
+  - 0.005
+  - 0.01
+  - 0.02
+  - 0.03
+  - 0.04
+  - 0.05
+  - 0.075
+  - 0.1
+  shots_grid:
+  - 100
+  - 250
+  - 500
+  - 1000
+  - 2000
+  - 5000
+  alpha_epsilon_alpha_grid:
+  - 0.0
+  - 0.05
+  - 0.1
+  - 0.15
+  - 0.2
+  alpha_epsilon_frequency_grid:
+  - 0.0
+  - 0.01
+  - 0.02
+  - 0.03
+  - 0.05
+  save_predictions: true
+baselines:
+  mle_steps: 5
+  compressed_sensing_steps: 5
+  bayesian_particles: 32
+  bayesian_particle_chunk: 16
+  purification_steps: 5
